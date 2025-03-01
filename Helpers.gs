@@ -941,6 +941,34 @@ function processEventInstance(recEvent){
  * If removePastEventsFromCalendar is set to false, events that have taken place will not be removed.
  */
 function processEventCleanup(){
+  // When an instance of a recurring event is deleted, we need to track it
+  // First, let's track the existing recurring event instances from the calendar
+  var existingRecurringInstances = new Set();
+  
+  for (var i = 0; i < calendarEvents.length; i++) {
+    if (calendarEvents[i].recurringEventId && calendarEvents[i].extendedProperties && 
+        calendarEvents[i].extendedProperties.private && calendarEvents[i].extendedProperties.private["rec-id"]) {
+      existingRecurringInstances.add(calendarEvents[i].extendedProperties.private["rec-id"]);
+    }
+  }
+  
+  // Check if any recurring event instance in our ICS data is missing from the calendar
+  var deletedEventsJson = PropertiesService.getScriptProperties().getProperty('manuallyDeletedEvents');
+  var deletedEvents = deletedEventsJson ? JSON.parse(deletedEventsJson) : {};
+  var now = new Date().getTime();
+  
+  for (var i = 0; i < icsEventsIds.length; i++) {
+    if (icsEventsIds[i].includes("_")) {  // This is a recurring event instance
+      if (!existingRecurringInstances.has(icsEventsIds[i])) {
+        // This recurring event instance exists in ICS but not in calendar - mark as deleted
+        deletedEvents[icsEventsIds[i]] = now;
+      }
+    }
+  }
+  
+  // Store updated deleted events list
+  PropertiesService.getScriptProperties().setProperty('manuallyDeletedEvents', JSON.stringify(deletedEvents));
+
   for (var i = 0; i < calendarEvents.length; i++){
       var currentID = calendarEventsIds[i];
       var feedIndex = icsEventsIds.indexOf(currentID);
