@@ -594,7 +594,26 @@ function processEvent(event, calendarTz){
   if (newEvent == null)
     return;
 
-  var index = calendarEventsIds.indexOf(newEvent.extendedProperties.private["id"]);
+  var eventId = newEvent.extendedProperties.private["id"];
+  var recurrenceId = null;
+  
+  // Check if this is a recurring event instance
+  if (event.hasProperty('recurrence-id')) {
+    recurrenceId = event.getFirstPropertyValue('recurrence-id').toString();
+    // Check if this specific instance was manually deleted
+    if (wasManuallyDeleted(eventId, recurrenceId)) {
+      Logger.log("Skipping recurring event instance " + eventId + " at " + recurrenceId + " as it was manually deleted");
+      return;
+    }
+  } else {
+    // Check if the main event was manually deleted
+    if (wasManuallyDeleted(eventId)) {
+      Logger.log("Skipping event " + eventId + " as it was manually deleted");
+      return;
+    }
+  }
+
+  var index = calendarEventsIds.indexOf(eventId);
   var needsUpdate = index > -1;
 
   //------------------------ Save instance overrides ------------------------
@@ -609,7 +628,7 @@ function processEvent(event, calendarTz){
     if (needsUpdate){
       if (modifyExistingEvents){
         oldEvent = calendarEvents[index]
-        Logger.log("Updating existing event " + newEvent.extendedProperties.private["id"]);
+        Logger.log("Updating existing event " + eventId);
         try{
           newEvent = callWithBackoff(function(){
             return Calendar.Events.update(newEvent, targetCalendarId, calendarEvents[index].id);
@@ -626,7 +645,7 @@ function processEvent(event, calendarTz){
     }
     else{
       if (addEventsToCalendar){
-        Logger.log("Adding new event " + newEvent.extendedProperties.private["id"]);
+        Logger.log("Adding new event " + eventId);
         try{
           newEvent = callWithBackoff(function(){
             return Calendar.Events.insert(newEvent, targetCalendarId);
@@ -865,6 +884,12 @@ function createEvent(event, calendarTz){
  */
 function processEventInstance(recEvent){
   Logger.log("ID: " + recEvent.extendedProperties.private["id"] + " | Date: "+ recEvent.recurringEventId);
+
+  // Check if this recurring event instance was manually deleted
+  if (wasManuallyDeleted(recEvent.extendedProperties.private["id"], recEvent.recurringEventId)) {
+    Logger.log("Skipping recurring event instance as it was manually deleted");
+    return;
+  }
 
   var eventInstanceToPatch = callWithBackoff(function(){
     return Calendar.Events.list(targetCalendarId,
@@ -1349,4 +1374,86 @@ function checkForUpdate(){
     var version = json_decoded[0]["tag_name"];
     return Number(version);
   }
+}
+
+/**
+* Tracks events that have been manually deleted from the calendar
+* to prevent them from being re-added in future syncs.
+*
+* @param {Array} calendarEventIds - IDs of events currently in the calendar
+* @param {Array} icsEventIds - IDs of events from the ICS sources
+* @return {Object} Dictionary of tracked manually deleted events
+*/
+function trackManuallyDeletedEvents(calendarEventIds, icsEventIds) {
+  var now = new Date();
+
+  var trackBefore = new Date(
+    now.getTime() - manuallyDeletedEventsTrackingDays * 24 * 60 * 60 * 1000
+  );
+
+  // Get the stored manually deleted events
+  var deletedEventsJson = PropertiesService.getScriptProperties().getProperty(
+    "manuallyDeletedEvents"
+  );
+
+  var deletedEvents = deletedEventsJson ? JSON.parse(deletedEventsJson) : {};
+
+  // Convert arrays to Sets for faster lookups
+  var calendarEventIdsSet = new Set(calendarEventIds);
+
+  // Find events that are in the feed but not in the calendar
+  // These are potentially manually deleted events
+  for (var i = 0; i < icsEventIds.length; i++) {
+    var eventId = icsEventIds[i];
+    if (!calendarEventIdsSet.has(eventId)) {
+      // Mark this event as deleted with timestamp
+      deletedEvents[eventId] = now.getTime();
+    }
+  }
+
+  // Clean up old entries
+  var updatedDeletedEvents = {};
+  for (var id in deletedEvents) {
+    if (deletedEvents[id] > trackBefore.getTime()) {
+      updatedDeletedEvents[id] = deletedEvents[id];
+    }
+  }
+
+  // Store updated list
+
+  PropertiesService.getScriptProperties().setProperty(
+    "manuallyDeletedEvents",
+    JSON.stringify(updatedDeletedEvents)
+  );
+
+  return updatedDeletedEvents;
+}
+
+
+
+/**
+* Checks if an event was manually deleted by the user
+*
+* @param {string} eventId - The main event ID
+* @param {string} recurrenceId - Optional recurrence ID for recurring event instances
+* @return {boolean} Whether the event was manually deleted
+*/
+
+function wasManuallyDeleted(eventId, recurrenceId) {
+  var deletedEventsJson = PropertiesService.getScriptProperties().getProperty(
+    "manuallyDeletedEvents"
+  );
+
+  var deletedEvents = deletedEventsJson ? JSON.parse(deletedEventsJson) : {};
+
+  // Check for the specific instance first (for recurring events)
+  if (recurrenceId) {
+    var instanceId = eventId + "_" + recurrenceId;
+    if (deletedEvents.hasOwnProperty(instanceId)) {
+      return true;
+    }
+  }
+
+  // Then check for the main event
+  return deletedEvents.hasOwnProperty(eventId);
 }
