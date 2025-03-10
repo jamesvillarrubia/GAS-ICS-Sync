@@ -1,0 +1,24 @@
+{
+  "name": "gas-ics-sync",
+  "version": "1.0.0",
+  "description": "### ⚠️⚠️ This project is looking for contributors and people to help answer questions! Please message @developers on the Discord! ⚠️⚠️",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamesvillarrubia/GAS-ICS-Sync.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jamesvillarrubia/GAS-ICS-Sync/issues"
+  },
+  "homepage": "https://github.com/jamesvillarrubia/GAS-ICS-Sync#readme",
+  "devDependencies": {
+    "gas-local": "^1.3.1",
+    "vitest": "^3.0.8"
+  }
+}

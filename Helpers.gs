@@ -1527,3 +1527,19 @@ function resetAllProperties() {
 
   Logger.log("All properties have been reset where applicable.");
 }
+
+
+// Exports all functions
+module.exports = {
+  processEventWithState: processEventWithState,
+  processEventInstance: processEventInstance,
+  processEvent: processEvent,
+  getEventState: getEventState,
+  setEventState: setEventState,
+  resetAllProperties: resetAllProperties,
+  formatDate: formatDate,
+  condenseCalendarMap: condenseCalendarMap,
+  getValidTriggerFrequency,
+  deleteAllTriggers,
+  fetchSourceCalendars,
+}

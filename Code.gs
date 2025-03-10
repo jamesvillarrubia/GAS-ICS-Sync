@@ -26,10 +26,7 @@ var sourceCalendars = [                // The ics/ical urls that you want to get
                                        // For instance: ["https://p24-calendars.icloud.com/holidays/us_en.ics", "US Holidays"]
                                        // Or with colors following mapping https://developers.google.com/apps-script/reference/calendar/event-color,
                                        // for instance: ["https://p24-calendars.icloud.com/holidays/us_en.ics", "US Holidays", "11"]
-  ["icsUrl1", "targetCalendar1"],
-  ["icsUrl2", "targetCalendar2"],
-  ["icsUrl3", "targetCalendar1"]
-
+  ["https://outlook.office365.com/owa/calendar/50a7c37872294c3bb85e233974b1aa95@nasa.gov/d0e445030255415eb0bd6d38d487efa37882842469700788415/S-1-8-2740809899-748186075-240430289-4101878812/reachcalendar.ics", "NASA"]
 ];
 
 var howFrequent = 15;                     // What interval (minutes) to run this script on to check for new events.  Any integer can be used, but will be rounded up to 5, 10, 15, 30 or to the nearest hour after that.. 60, 120, etc. 1440 (24 hours) is the maximum value.  Anything above that will be replaced with 1440.
@@ -51,6 +48,7 @@ var emailSummary = false;                 // Will email you when an event is add
 var email = "";                           // OPTIONAL: If "emailSummary" is set to true or you want to receive update notifications, you will need to provide your email address
 var customEmailSubject = "";              // OPTIONAL: If you want to change the email subject, provide a custom one here. Default: "GAS-ICS-Sync Execution Summary"
 var dateFormat = "YYYY-MM-DD"             // date format in the email summary (e.g. "YYYY-MM-DD", "DD.MM.YYYY", "MM/DD/YYYY". separators are ".", "-" and "/")
+/* END SETTINGS */
 
 /*
 *=========================================
@@ -147,7 +145,7 @@ var removedEvents = [];
 var reportOverallFailure = false;
 
 function startSync(){
-  if (PropertiesService.getUserProperties().getProperty('LastRun') > 0 && (new Date().getTime() - PropertiesService.getUserProperties().getProperty('LastRun')) < 360000) {
+  if (PropertiesService.getUserProperties().getProperty('LastRun') > 0 && (new Date().getTime() - PropertiesService.getUserProperties().getProperty('LastRun')) < 0) {
     Logger.log("Another iteration is currently running! Exiting...");
     return;
   }
@@ -217,6 +215,7 @@ function startSync(){
         }, defaultMaxRetries);
 
       vevents.forEach(function(e){
+        // processEvent(e, calendarTz);
         processEventWithState(e, calendarTz);
       });
 
@@ -238,6 +237,7 @@ function startSync(){
     //------------------------ Add Recurring Event Instances ------------------------
     Logger.log("Processing " + recurringEvents.length + " Recurrence Instances!");
     for (var recEvent of recurringEvents){
+      // processEventInstance(recEvent);
       processEventWithState(recEvent, calendarTz, true); // Use the state machine for recurring instances
 
     }
